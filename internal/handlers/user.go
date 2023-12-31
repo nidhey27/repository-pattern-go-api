@@ -25,7 +25,6 @@ func CreateUser(c *fiber.Ctx) error {
 	errors := utils.ValidateStruct(user)
 	if errors != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
-
 	}
 
 	_, err := userRepository.Create(user)
@@ -120,7 +119,6 @@ func UpdateUser(c *fiber.Ctx) error {
 	user := &models.User{}
 
 	db := database.GetDB()
-	db.LogMode(true)
 	userRepository := repository.ProvideUserRepository(db)
 
 	id, _ := strconv.Atoi(userId)
