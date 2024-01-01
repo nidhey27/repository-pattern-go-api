@@ -4,6 +4,7 @@ package database
 import (
 	"fmt"
 	"os"
+	"rest-api-redis/pkg/models"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -38,6 +39,9 @@ func init() {
 		fmt.Println("Error pinging database:", err)
 		return
 	}
+
+	// Run Migrate
+	db.Begin().AutoMigrate(&models.User{})
 
 	fmt.Println("Database 🗃️  connected successfully.")
 }

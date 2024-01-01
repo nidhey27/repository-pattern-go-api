@@ -6,7 +6,7 @@ import (
 	"os"
 	"rest-api-redis/internal/handlers"
 	"rest-api-redis/pkg/database"
-	"rest-api-redis/pkg/models"
+	"rest-api-redis/pkg/repository"
 	"rest-api-redis/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -27,23 +27,22 @@ func Run() error {
 	app.Use(cors.New())
 
 	db := database.GetDB()
-	defer db.Close()
-
-	db.Begin().AutoMigrate(&models.User{})
+	repository := repository.InitRepository(db)
+	h := handlers.InitHandler(repository)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return utils.SendResponse(http.StatusOK, "Movies & Web Series Library by Nidhey Indurkar", "", make([]string, 0), c)
 	})
 
-	app.Get("/healthchecker", func(c *fiber.Ctx) error {
-		return utils.SendResponse(http.StatusOK, "Welcome to Golang, Fiber, and GORM", "", make([]string, 0), c)
+	app.Get("/api/health", func(c *fiber.Ctx) error {
+		return utils.SendResponse(http.StatusOK, "Healthy", "", make([]string, 0), c)
 	})
 
-	app.Post("/api/user", handlers.CreateUser)
-	app.Get("/api/user/:id", handlers.GetUser)
-	app.Get("/api/user", handlers.GetUsers)
-	app.Delete("/api/user/:id", handlers.DeleteUser)
-	app.Put("/api/user/:id", handlers.UpdateUser)
+	app.Post("/api/user", h.UserHandler.CreateUser)
+	app.Get("/api/user/:id", h.UserHandler.GetUser)
+	app.Get("/api/user", h.UserHandler.GetUsers)
+	app.Delete("/api/user/:id", h.UserHandler.DeleteUser)
+	app.Put("/api/user/:id", h.UserHandler.UpdateUser)
 
 	return app.Listen(*addr)
 }

@@ -6,6 +6,14 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+type IUserRepository interface {
+	FindAll(offset int, limit int) ([]models.User, error)
+	FindByID(id uint) (models.User, error)
+	Create(user *models.User) (*models.User, error)
+	Update(user *models.User) (*models.User, error)
+	Delete(id uint) error
+}
+
 type UserRepository struct {
 	DB *gorm.DB
 }

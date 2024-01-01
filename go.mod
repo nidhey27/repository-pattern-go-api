@@ -9,16 +9,12 @@ require (
 	github.com/gofiber/fiber/v2 v2.51.0
 	github.com/jinzhu/gorm v1.9.16
 	github.com/stretchr/testify v1.8.4
-	gorm.io/driver/mysql v1.5.2
-	gorm.io/gorm v1.25.5
 )
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/gofiber/utils v0.0.10 // indirect
-	github.com/gorilla/schema v1.1.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
@@ -29,7 +25,6 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gofiber/fiber v1.14.6
 	github.com/google/uuid v1.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect

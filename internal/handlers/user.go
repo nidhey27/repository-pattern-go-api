@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"rest-api-redis/pkg/database"
 	"rest-api-redis/pkg/models"
 	"rest-api-redis/pkg/repository"
 	"rest-api-redis/pkg/utils"
@@ -13,11 +12,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func CreateUser(c *fiber.Ctx) error {
-	user := &models.User{}
-	db := database.GetDB()
-	userRepository := repository.ProvideUserRepository(db)
+// Controller contains the service, which contains database-related logic, as an injectable dependency, allowing us to decouple business logic from db logic.
+type UserHandler struct {
+	service repository.IUserRepository
+}
 
+func InitUserHandler(userRepo *repository.UserRepository) *UserHandler {
+	return &UserHandler{
+		service: userRepo,
+	}
+}
+
+func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
+	user := &models.User{}
 	if err := c.BodyParser(&user); err != nil {
 		return utils.SendResponse(http.StatusBadRequest, "", err.Error(), make([]string, 0), c)
 	}
@@ -27,7 +34,7 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errors)
 	}
 
-	_, err := userRepository.Create(user)
+	_, err := h.service.Create(user)
 
 	if err != nil {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
@@ -36,16 +43,14 @@ func CreateUser(c *fiber.Ctx) error {
 	return utils.SendResponse(http.StatusCreated, "User created successfully", "", user, c)
 }
 
-func GetUser(c *fiber.Ctx) error {
+func (h *UserHandler) GetUser(c *fiber.Ctx) error {
 	userId := c.Params("id")
 	if userId == "" {
 		return utils.SendResponse(http.StatusBadRequest, "", "ID is required", make([]string, 0), c)
 	}
-	db := database.GetDB()
-	userRepository := repository.ProvideUserRepository(db)
 
 	id, _ := strconv.Atoi(userId)
-	result, err := userRepository.FindByID(uint(id))
+	result, err := h.service.FindByID(uint(id))
 
 	if err != nil {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
@@ -54,7 +59,7 @@ func GetUser(c *fiber.Ctx) error {
 	return utils.SendResponse(http.StatusOK, "User fetched successfully", "", result, c)
 }
 
-func GetUsers(c *fiber.Ctx) error {
+func (h *UserHandler) GetUsers(c *fiber.Ctx) error {
 
 	var page = c.Query("page", "1")
 	var limit = c.Query("limit", "10")
@@ -63,10 +68,7 @@ func GetUsers(c *fiber.Ctx) error {
 	intLimit, _ := strconv.Atoi(limit)
 	offset := (intPage - 1) * intLimit
 
-	db := database.GetDB()
-	userRepository := repository.ProvideUserRepository(db)
-
-	result, err := userRepository.FindAll(intLimit, offset)
+	result, err := h.service.FindAll(intLimit, offset)
 
 	if err != nil {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
@@ -86,23 +88,20 @@ func GetUsers(c *fiber.Ctx) error {
 	return utils.SendResponse(http.StatusOK, "Users fetched successfully", "", responseData, c)
 }
 
-func DeleteUser(c *fiber.Ctx) error {
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
 	userId := c.Params("id")
 	if userId == "" {
 		return utils.SendResponse(http.StatusBadRequest, "", "ID is required", make([]string, 0), c)
 	}
 
-	db := database.GetDB()
-	userRepository := repository.ProvideUserRepository(db)
-
 	id, _ := strconv.Atoi(userId)
-	_, err := userRepository.FindByID(uint(id))
+	_, err := h.service.FindByID(uint(id))
 
 	if err != nil && strings.Contains(err.Error(), "record not found") {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
 	}
 
-	err = userRepository.Delete(uint(id))
+	err = h.service.Delete(uint(id))
 
 	if err != nil {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
@@ -111,18 +110,15 @@ func DeleteUser(c *fiber.Ctx) error {
 	return utils.SendResponse(http.StatusOK, fmt.Sprintf("User with ID %v deleted successfully", userId), "", make([]string, 0), c)
 }
 
-func UpdateUser(c *fiber.Ctx) error {
+func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 	userId := c.Params("id")
 	if userId == "" {
 		return utils.SendResponse(http.StatusBadRequest, "", "ID is required", make([]string, 0), c)
 	}
 	user := &models.User{}
 
-	db := database.GetDB()
-	userRepository := repository.ProvideUserRepository(db)
-
 	id, _ := strconv.Atoi(userId)
-	_, err := userRepository.FindByID(uint(id))
+	_, err := h.service.FindByID(uint(id))
 
 	if err != nil && strings.Contains(err.Error(), "record not found") {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
@@ -137,7 +133,7 @@ func UpdateUser(c *fiber.Ctx) error {
 
 	uid, _ := strconv.Atoi(userId)
 	user.ID = uint(uid)
-	updatedUser, err := userRepository.Update(user)
+	updatedUser, err := h.service.Update(user)
 
 	if err != nil {
 		return utils.SendResponse(http.StatusBadGateway, "", err.Error(), make([]string, 0), c)
