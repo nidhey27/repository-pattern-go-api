@@ -1,231 +1,197 @@
 package handlers
 
-// import (
-// 	"encoding/json"
-// 	"net/http"
-// 	"net/http/httptest"
-// 	"strings"
-// 	"testing"
-// 	"time"
+import (
+	"net/http"
+	"net/http/httptest"
+	"rest-api-redis/pkg/repository"
+	"strings"
+	"testing"
+	"time"
 
-// 	"github.com/gofiber/fiber/v2"
-// 	"github.com/stretchr/testify/assert"
-// 	"github.com/stretchr/testify/mock"
-// )
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/gofiber/fiber/v2"
+	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
+)
 
-// // User represents a user entity.
-// type User struct {
-// 	ID           int       `json:"id"`
-// 	Name         string    `json:"name"`
-// 	Email        string    `json:"email"`
-// 	Age          int       `json:"age"`
-// 	Birthday     time.Time `json:"birthday"`
-// 	MemberNumber string    `json:"member_number"`
-// 	ActivatedAt  time.Time `json:"activated_at"`
-// }
+func setupTest(t *testing.T) (sqlmock.Sqlmock, *repository.UserRepository) {
+	// Set up a mock database connection
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Error creating mock database: %v", err)
+	}
 
-// // CreateUserPayload represents the payload for creating a user.
-// type CreateUserPayload struct {
-// 	Name         string    `json:"name"`
-// 	Email        string    `json:"email"`
-// 	Age          any       `json:"age"`
-// 	Birthday     time.Time `json:"birthday"`
-// 	MemberNumber string    `json:"member_number"`
-// 	ActivatedAt  time.Time `json:"activated_at"`
-// }
+	// Initialize GORM with the mock DB
+	gdb, err := gorm.Open("mysql", db)
+	if err != nil {
+		t.Fatalf("Error creating GORM instance: %v", err)
+	}
 
-// // UpdateUserPayload represents the payload for updating a user.
-// type UpdateUserPayload struct {
-// 	Name         string     `json:"name"`
-// 	Email        string     `json:"email"`
-// 	Age          int        `json:"age"`
-// 	Birthday     *time.Time `json:"birthday"`
-// 	MemberNumber string     `json:"member_number"`
-// 	ActivatedAt  *time.Time `json:"activated_at"`
-// }
+	// Create UserRepository instance with the mock DB
+	userRepository := &repository.UserRepository{DB: gdb}
 
-// // Database represents the database operations.
-// type Database interface {
-// 	CreateUser(user *CreateUserPayload) error
-// 	GetUser(userID int) (*User, error)
-// 	GetUsers(page, limit int) ([]*User, error)
-// 	DeleteUser(userID int) error
-// 	UpdateUser(userID int, user *UpdateUserPayload) (*User, error)
-// }
+	return mock, userRepository
+}
 
-// // import (
-// // 	"encoding/json"
-// // 	"net/http"
-// // 	"net/http/httptest"
-// // 	"strings"
-// // 	"testing"
-// // 	"time"
+func TestCreateUser(t *testing.T) {
+	scenarios := []struct {
+		name       string
+		userJSON   string
+		statusCode int
+	}{
+		{"All Fields Provided", `{"name": "John Doe", "email": "john.doe@example.com", "age": 25}`, http.StatusCreated},
+		{"Name and Email Provided", `{"name": "John Doe", "email": "john.doe@example.com"}`, http.StatusBadRequest},
+		{"Email and Age Provided", `{"email": "john.doe@example.com", "age": 25}`, http.StatusBadRequest},
+		{"Age and Name Provided", `{"name": "John Doe", "age": 25}`, http.StatusBadRequest},
+		{"No Body", ``, http.StatusBadRequest},
+	}
 
-// // 	"github.com/gofiber/fiber/v2"
-// // 	"github.com/stretchr/testify/assert"
-// // )
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			mock, userRepository := setupTest(t)
 
-// // type CreateUserPayload struct {
-// // 	Name         string    `json:"name"`
-// // 	Email        string    `json:"email"`
-// // 	Age          any       `json:"age"`
-// // 	Birthday     time.Time `json:"birthday"`
-// // 	MemberNumber string    `json:"member_number"`
-// // 	ActivatedAt  time.Time `json:"activated_at"`
-// // }
+			// Mock repository
+			handler := InitUserHandler(userRepository)
 
-// func TestCreateUser(t *testing.T) {
-// 	app := fiber.New()
-// 	app.Post("/users", CreateUser)
+			// Create a request and response recorder
+			req := httptest.NewRequest(http.MethodPost, "/user", strings.NewReader(scenario.userJSON))
+			req.Header.Set("Content-Type", "application/json")
 
-// 	tests := []struct {
-// 		name           string
-// 		payload        CreateUserPayload
-// 		expectedStatus int
-// 	}{
-// 		{
-// 			name: "ValidPayload",
-// 			payload: CreateUserPayload{
-// 				Name:         "Nidhey",
-// 				Email:        "nidhey60@gmail.com",
-// 				Age:          25,
-// 				Birthday:     time.Date(1999, 3, 27, 0, 0, 0, 0, time.UTC),
-// 				MemberNumber: "27031999",
-// 				ActivatedAt:  time.Date(2023, 1, 1, 12, 30, 45, 0, time.UTC),
-// 			},
-// 			expectedStatus: http.StatusCreated,
-// 		},
-// 		{
-// 			name: "Payload",
-// 			payload: CreateUserPayload{
-// 				Email:        "nidhey60@gmail.com",
-// 				Age:          25,
-// 				Birthday:     time.Date(1999, 3, 27, 0, 0, 0, 0, time.UTC),
-// 				MemberNumber: "27031999",
-// 				ActivatedAt:  time.Date(2023, 1, 1, 12, 30, 45, 0, time.UTC),
-// 			},
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name: "MalformedPayload",
-// 			payload: CreateUserPayload{
-// 				Name:         "Nidhey Indurkar",
-// 				Email:        "nidhey60@gmail.com",
-// 				Age:          "invalid",
-// 				Birthday:     time.Date(1999, 3, 27, 0, 0, 0, 0, time.UTC),
-// 				MemberNumber: "27031999",
-// 				ActivatedAt:  time.Date(2023, 1, 1, 12, 30, 45, 0, time.UTC),
-// 			},
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 		{
-// 			name: "RepositoryError",
-// 			payload: CreateUserPayload{
-// 				Name:         "Nidhey Indurkar",
-// 				Email:        "nidhey60@gmail.com",
-// 				Age:          "invalid",
-// 				Birthday:     time.Date(1999, 3, 27, 0, 0, 0, 0, time.UTC),
-// 				MemberNumber: "27031999",
-// 				ActivatedAt:  time.Date(2023, 1, 1, 12, 30, 45, 0, time.UTC),
-// 			},
-// 			expectedStatus: http.StatusBadRequest,
-// 		},
-// 	}
+			// Call the CreateUser handler
+			app := fiber.New()
+			app.Post("/user", handler.CreateUser)
 
-// 	for _, test := range tests {
-// 		t.Run(test.name, func(t *testing.T) {
-// 			payload, err := json.Marshal(test.payload)
-// 			assert.NoError(t, err)
+			// Set up expectations for the mock database
+			if scenario.statusCode == http.StatusCreated {
+				mock.ExpectBegin()
+				mock.ExpectExec("INSERT INTO `users` (.+)").WithArgs(
+					sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+					sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
+				).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			}
 
-// 			req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(string(payload)))
-// 			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			assert.NoError(t, err)
 
-// 			resp, err := app.Test(req)
-// 			assert.NoError(t, err)
-// 			assert.Equal(t, test.expectedStatus, resp.StatusCode)
-// 		})
-// 	}
-// }
+			// Assert the response status code
+			assert.Equal(t, scenario.statusCode, resp.StatusCode)
+		})
+	}
+}
 
-// // func TestGetUser(t *testing.T) {
-// // 	app := fiber.New()
-// // 	app.Get("/users/:id", GetUser)
+func TestGetUser(t *testing.T) {
+	mock, userRepository := setupTest(t)
 
-// // 	t.Run("GetUser", func(t *testing.T) {
-// // 		req := httptest.NewRequest(http.MethodGet, "/users/39", nil)
-// // 		resp, err := app.Test(req)
+	// Mock repository
+	handler := InitUserHandler(userRepository)
 
-// // 		assert.NoError(t, err)
-// // 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-// // 	})
-// // }
+	mock.ExpectQuery("SELECT (.+) FROM `users` (.+)").
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "age", "birthday", "member_number", "activated_at", "created_at", "updated_at"}).
+			AddRow(1, "John Doe", "john.doe@example.com", 25, nil, "123456", nil, time.Now(), time.Now()))
 
-// // func TestGetUsers(t *testing.T) {
-// // 	app := fiber.New()
-// // 	app.Get("/users", GetUsers)
+	// Create a request and response recorder
+	req := httptest.NewRequest(http.MethodGet, "/user/1", nil)
+	req.Header.Set("Content-Type", "application/json")
 
-// // 	t.Run("GetUsers", func(t *testing.T) {
-// // 		req := httptest.NewRequest(http.MethodGet, "/users?page=1&limit=10", nil)
-// // 		resp, err := app.Test(req)
+	// Call the GetUser handler
+	app := fiber.New()
+	app.Get("/user/:id", handler.GetUser)
 
-// // 		assert.NoError(t, err)
-// // 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-// // 	})
-// // }
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
 
-// // func TestDeleteUser(t *testing.T) {
-// // 	app := fiber.New()
-// // 	app.Delete("/users/:id", DeleteUser)
+	// Assert the response status code
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
 
-// // 	t.Run("DeleteUser", func(t *testing.T) {
-// // 		req := httptest.NewRequest(http.MethodDelete, "/users/40", nil)
-// // 		resp, err := app.Test(req)
+func TestGetUsers(t *testing.T) {
+	mock, userRepository := setupTest(t)
 
-// // 		assert.NoError(t, err)
-// // 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-// // 	})
-// // }
+	// Mock repository
+	handler := InitUserHandler(userRepository)
 
-// // func TestUpdateUser(t *testing.T) {
-// // 	app := fiber.New()
-// // 	app.Put("/users/:id", UpdateUser)
+	// Mock data
+	mock.ExpectQuery("SELECT (.+) FROM `users` (.+)").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "age", "birthday", "member_number", "activated_at", "created_at", "updated_at"}).
+			AddRow(1, "John Doe", "john.doe@example.com", 25, nil, "123456", nil, time.Now(), time.Now()))
 
-// // 	t.Run("UpdateUser", func(t *testing.T) {
-// // 		payload := `{"name": "Updated Name", "email": "updated.email@example.com", "age": 30, "birthday": null, "member_number": "654321", "activated_at": null}`
-// // 		req := httptest.NewRequest(http.MethodPut, "/users/41", strings.NewReader(payload))
-// // 		req.Header.Set("Content-Type", "application/json")
+	// Create a request and response recorder
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	req.Header.Set("Content-Type", "application/json")
 
-// // 		resp, err := app.Test(req)
-// // 		assert.NoError(t, err)
-// // 		assert.Equal(t, http.StatusOK, resp.StatusCode)
-// // 	})
-// // }
+	// Call the GetUsers handler
+	app := fiber.New()
+	app.Get("/users", handler.GetUsers)
 
-// type DatabaseMock struct {
-// 	mock.Mock
-// }
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
 
-// func (m *DatabaseMock) CreateUser(user *CreateUserPayload) error {
-// 	args := m.Called(user)
-// 	return args.Error(0)
-// }
+	// Assert the response status code
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
 
-// func (m *DatabaseMock) GetUser(userID int) (*User, error) {
-// 	args := m.Called(userID)
-// 	return args.Get(0).(*User), args.Error(1)
-// }
+func TestDeleteUser(t *testing.T) {
+	mock, userRepository := setupTest(t)
 
-// func (m *DatabaseMock) GetUsers(page, limit int) ([]*User, error) {
-// 	args := m.Called(page, limit)
-// 	return args.Get(0).([]*User), args.Error(1)
-// }
+	// Mock repository
+	handler := InitUserHandler(userRepository)
 
-// func (m *DatabaseMock) DeleteUser(userID int) error {
-// 	args := m.Called(userID)
-// 	return args.Error(0)
-// }
+	// Mock data
+	mock.ExpectQuery("SELECT (.+) FROM `users` (.+)").
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "age", "birthday", "member_number", "activated_at", "created_at", "updated_at"}).
+			AddRow(1, "John Doe", "john.doe@example.com", 25, nil, "123456", nil, time.Now(), time.Now()))
+	mock.ExpectBegin()
+	mock.ExpectExec("DELETE FROM `users` WHERE (.+)").
+		WithArgs(1).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
-// func (m *DatabaseMock) UpdateUser(userID int, user *UpdateUserPayload) (*User, error) {
-// 	args := m.Called(userID, user)
-// 	return args.Get(0).(*User), args.Error(1)
-// }
+	// Create a request and response recorder
+	req := httptest.NewRequest(http.MethodDelete, "/user/1", nil)
+	req.Header.Set("Content-Type", "application/json")
+
+	// Call the DeleteUser handler
+	app := fiber.New()
+	app.Delete("/user/:id", handler.DeleteUser)
+
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+
+	// Assert the response status code
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestUpdateUser(t *testing.T) {
+	mock, userRepository := setupTest(t)
+
+	// Mock repository
+	handler := InitUserHandler(userRepository)
+
+	// Mock data
+	mock.ExpectQuery("SELECT (.+) FROM `users` (.+)").
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "email", "age", "birthday", "member_number"}).
+			AddRow(1, "John Doe", "john.doe@example.com", 25, nil, "123456"))
+	mock.ExpectBegin()
+	mock.ExpectExec("UPDATE `users` SET (.+) WHERE `users`.`id` = ?").
+		WithArgs("Updated Name", "updated.email@example.com", 26, nil, "123456", nil, sqlmock.AnyArg(), 1).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	// Create a request and response recorder
+	req := httptest.NewRequest(http.MethodPut, "/user/1", strings.NewReader(`{"name": "Updated Name", "email": "updated.email@example.com", "age": 26, "member_number": "123456"}`))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Call the UpdateUser handler
+	app := fiber.New()
+	app.Put("/user/:id", handler.UpdateUser)
+
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+
+	// Assert the response status code
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}

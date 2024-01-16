@@ -31,7 +31,7 @@ func Run() error {
 	h := handlers.InitHandler(repository)
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return utils.SendResponse(http.StatusOK, "Movies & Web Series Library by Nidhey Indurkar", "", make([]string, 0), c)
+		return utils.SendResponse(http.StatusOK, "Users Management using Repository Pattern by Nidhey Indurkar", "", make([]string, 0), c)
 	})
 
 	app.Get("/api/health", func(c *fiber.Ctx) error {

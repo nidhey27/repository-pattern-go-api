@@ -143,8 +143,8 @@ func TestUpdate(t *testing.T) {
 	mock.ExpectExec("UPDATE `users` SET (.+) WHERE `users`.`id` = ?").
 		WithArgs("Updated Name", "updated.email@example.com", 30, nil, "654321", nil, time.Now(), 1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-
 	mock.ExpectCommit()
+	
 	updatedUser, err := userRepository.Update(userToUpdate)
 	assert.NoError(t, err)
 	assert.NotNil(t, updatedUser)
