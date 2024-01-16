@@ -1,10 +1,10 @@
-// D:\Projects\REST-API-Go\pkg\database\connection.go
 package database
 
 import (
 	"fmt"
 	"os"
 	"rest-api-redis/pkg/models"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
@@ -26,18 +26,25 @@ func init() {
 	}
 
 	var err error
-	db, err = gorm.Open("mysql", connectionString)
+	maxRetries := 10
+	for retry := 1; retry <= maxRetries; retry++ {
+		db, err = gorm.Open("mysql", connectionString)
 
-	if err != nil {
-		fmt.Println("Error opening database:", err)
-		return
-	}
+		if err == nil {
+			// Test the connection.
+			err = db.DB().Ping()
+			if err == nil {
+				break // Connection successful, break out of the loop.
+			}
+		}
 
-	// Test the connection.
-	err = db.DB().Ping()
-	if err != nil {
-		fmt.Println("Error pinging database:", err)
-		return
+		if retry < maxRetries {
+			fmt.Printf("Error opening database (Attempt %d of %d): %v\n", retry, maxRetries, err)
+			time.Sleep(5 * time.Second) // Wait for 5 seconds before retrying.
+		} else {
+			fmt.Println("Maximum retries reached. Couldn't establish a database connection.")
+			return
+		}
 	}
 
 	// Run Migrate

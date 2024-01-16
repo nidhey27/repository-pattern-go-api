@@ -1,0 +1,27 @@
+version: "2.0"
+
+services: 
+  mysql_server:
+    image: mysql
+    environment: 
+      - MYSQL_DATABASE=dapi_assg_db
+      - MYSQL_USER=dan
+      - MYSQL_PASSWORD=secret
+      - MYSQL_ROOT_PASSWORD=secret
+    ports:
+      - "3306:3306"
+    container_name: mysql-db
+  
+  my-app:
+    image: nidhey27/repo-pattern-user-rest-api
+    environment: 
+      - DB_HOST=mysql-db
+      - DB_NAME=dapi_assg_db
+      - DB_USER=dan
+      - DB_PASSWORD=secret
+      - DB_PORT=3306
+    ports:
+      - "8080:8080"
+    container_name: my-app
+    depends_on: 
+      - mysql_server
