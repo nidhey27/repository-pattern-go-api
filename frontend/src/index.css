@@ -1,0 +1,41 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+main {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.response,
+#curl-request {
+  background-color: black;
+  padding: 1rem;
+  color: wheat;
+  border-radius: 24px;
+  max-height: 25rem;
+  overflow-y: scroll;
+}
+
+/* WebKit (Chrome, Safari) scrollbar styling */
+.response::-webkit-scrollbar,
+#curl-request::-webkit-scrollbar-track {
+  width: 5px;
+}
+
+.response::-webkit-scrollbar-thumb,
+#curl-request::-webkit-scrollbar-thumb {
+  background-color: #6b7280; /* Color of the scrollbar thumb */
+  border-radius: 6px;
+}
+
+.response::-webkit-scrollbar-track,
+#curl-request::-webkit-scrollbar-track {
+  background-color: transparent; /* Color of the scrollbar track */
+}
+
+/* Firefox scrollbar styling */
+.response {
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 transparent; /* Color of the scrollbar thumb and track */
+}
